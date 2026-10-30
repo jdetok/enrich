@@ -1,9 +1,11 @@
-SPRIDEN_ALL = """
+def _fetch_only(num=100): return f'fetch first {num} rows only'
+
+def SPRIDEN_ALL(little: int | None = None): return f"""
 select spriden_id as bid, spriden_pidm as pidm, spbpers_ssn as ssn
-from spriden join spbpers on spbpers_pidm = spriden_pidm 
-where spriden_change_ind is null
+from spriden join spbpers on spbpers_pidm = spriden_pidm where spriden_change_ind is null 
+{_fetch_only(little) if little is not None else ""}
 """
-SPRIDEN_RECENT = """
+def SPRIDEN_REC(little: int | None = None): return f"""
 select spriden_id as bid, spriden_pidm as pidm, spbpers_ssn as ssn
 from spriden join spbpers on spbpers_pidm = spriden_pidm 
 where spriden_change_ind is null
@@ -19,4 +21,5 @@ or exists (
     and saradap_apst_code in ('D')
     and saradap_term_code_entry between to_char(sysdate, 'YYYY') - 8 || '20' and to_char(sysdate, 'YYYY') || '20'
 )
+{_fetch_only(little) if little is not None else ""}
 """
