@@ -1,11 +1,11 @@
-from typing import Any
-import os
 import sys
-import argparse
-import oracledb # import oracle library and explicitly set client as thick mode is required
 from pathlib import Path
+from row.row import Row
+from cli.cli import parse_cli_args
 from readers.file import read_table
-oracledb.init_oracle_client(lib_dir="/Users/dekockjt/oracle/instantclient_23_26")
+from database.queries import SPRIDEN_ALL, SPRIDEN_RECENT
+from database.connection import query
+
 
 """ 10/29/2026
 Intention: build a CLI where I can pass an Excel or CSV file with a Banner ID, PIDM, 
@@ -20,35 +20,29 @@ ID_TYPES = {
     'ssn': 'SSN',
 }
 
-Row = dict[str, Any]
-
-SPRIDEN_ALL = """
-select spriden_id as bid, spriden_pidm as pidm, spbpers_ssn as ssn
-from spriden join spbpers on spbpers_pidm = spriden_pidm 
-where spriden_change_ind is null
-"""
-
-def getParsedArgs():
-    parser = argparse.ArgumentParser(
-        prog='enrich',
-        description='erich a dataset with additional student identifier types'
-    )
-    parser.add_argument('-d', '--dry', action='store_true')
-    parser.add_argument('-i', '--id-in', default='bid', choices=list(ID_TYPES), 
-        help='the ID type in the existing file to join to')
-    parser.add_argument('-n', '--id-column', default='Banner ID', help='name of the column in the input file with ID')
-    parser.add_argument('-f', '--file-in', default='test.csv', help='the input file')
-    parser.add_argument('-j', '--join-type', default='left', choices=['left', 'inner'], 
-        help='join type: preserve all rows from file or only write joined rows')
-    parser.add_argument('-b', '--bid', action='store_true', help='add Banner ID column') 
-    parser.add_argument('-p', '--pidm', action='store_true', help='add PIDM column')
-    parser.add_argument('-c', '--csv', action='store_true', help='save output as CSV')
-    parser.add_argument('-x', '--xl', action='store_true', help='save output as Excel')
-    parser.add_argument('-a', '--all', action='store_true', 
-        help='Join against full SPRIDEN query - default limits to students enrolled in the last several years')
-    parser.add_argument('-o', '--out-dir', action='store_true', help='directory to write the output file')
-    
-    return parser.parse_args()
+CLI_ARGS = {
+    'd': {'long': 'dry', 'action': 'store_true', 'help': 'execute a dry run'},
+    'n': {'long': 'id-column', 'default': 'bid', 'help': 'the ID type in the existing file to join to'},
+    'f': {'long': 'file-in', 'default': 'test.csv', 'help': 'the ID type in the existing file to join to'},
+    'b': {'long': 'bid', 'action': 'store_true', 'help': 'add Banner ID column'},
+    'p': {'long': 'pidm', 'action': 'store_true', 'help': 'add PIDM column'},
+    's': {'long': 'ssn', 'action': 'store_true', 'help': 'add SSN column'},
+    'c': {'long': 'save-csv', 'action': 'store_true', 'help': 'save output file as CSV regardless of input type'},
+    'x': {'long': 'save-xl', 'action': 'store_true', 'help': 'save output file as Excel regardless of input type'},
+    'z': {'long': 'db-batch-size', 'default': 15_000, 'help': 'set the batch array size for the oracledb driver'},
+    'i': {
+        'long': 'id-in', 'default': 'bid', 'choices': list(ID_TYPES),
+        'help': 'the ID type in the existing file to join to'
+    },
+    'a': {
+        'long': 'all-spriden', 'action': 'store_true', 
+        'help': 'join against full SPRIDEN query - default limits to students enrolled in the last several years'
+    },
+    'j': {
+        'long': 'join-type', 'default': 'left', 'choices': ['left', 'inner'], 
+        'help': 'join type: preserve all rows from file or only write joined rows'
+    },
+}
 
 def s_strip(s: str) -> str:
     return s.replace('"', '').replace("'", '').strip().lower()
@@ -59,26 +53,28 @@ def extract_ids(rows: list[Row], column_name: str) -> list:
             return [s_strip(row[key]) for row in rows]
         raise ValueError(f"'{column_name}' not found in headers: {rows[0]}")
 
-def connect_db() -> oracledb.Connection:
-    user = os.environ['ORA_USER']
-    pswd = os.environ['ORA_PASS']
-    port = os.environ['ORA_PORT']
-    host = os.environ['ORA_HOST']
-    name = os.environ['ORA_NAME']
-    dsn = f'{host}:{port}/{name}'
-    return oracledb.connect(user=user, password=pswd, dsn=dsn)
-
 def main():
-    args = getParsedArgs()
+    args = parse_cli_args(
+        'enrich', 
+        'enrich a dataset containing a student ID column with another type of student ID',
+        CLI_ARGS
+    )
+
     if args.dry:
         print('dry execution')
         sys.exit(0)
+
+    spriden_query = SPRIDEN_ALL if args.all_spriden else SPRIDEN_RECENT
 
     rows = read_table(Path(args.file_in))
     print(rows)
 
     ids = extract_ids(rows, args.id_column)
     print(ids)
+
+    queryRows = query(spriden_query, batch_size=args.db_batch_size)
+    print(len(queryRows))
+    
 
 if __name__=="__main__":
     main()
