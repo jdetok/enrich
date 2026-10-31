@@ -7,10 +7,12 @@ def parse_cli_args(prog_name: str, prog_desc: str, args_conf: dict) -> argparse.
         parser.add_argument(f'-{key}', f'--{conf.pop('long')}', **conf)
     return parser.parse_args()
 
+# idx correlates to the position of the id field in the query results
 ID_TYPES = {
-    'bid': 'Banner ID',
-    'pidm': 'PIDM',
-    'ssn': 'SSN',
+    'bid': {'idx': 0, 'long': 'Banner ID', 'pattern': r'\d{9}'},
+    'pidm': {'idx': 1, 'long': 'PIDM', 'pattern': r'\d'},
+    'ssn': {'idx': 2, 'long': 'SSN', 'pattern': r'\d{9}'}, 
+    'name': {'idx': 3, 'long': 'Name', 'pattern': None}, 
 }
 
 CLI_ARGS = {
@@ -32,7 +34,7 @@ CLI_ARGS = {
         'help': f"options: {', '.join(f'{k}={v}' for k, v in ID_TYPES.items())}"
     },
     'q': {
-        'long': 'query', 'default': 'current', 'choices': ['all', 'current'], 
+        'long': 'query', 'default': 'current', 'choices': ['all', 'current', 'test'], 
         'help': 'choose which database query to use: all of spriden or current students'
     },
     'j': {
