@@ -4,3 +4,5 @@
 __pycache__
 *.xls*
 *.pyc
+priv.csv
+out/

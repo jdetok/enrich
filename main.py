@@ -3,9 +3,11 @@ import re
 import sys
 import atexit
 from pathlib import Path
+from datetime import datetime
 from row.row import Row
 from readers.file import read_table
 from writers.test_csv import make_test_csv, remove_rows_where
+from writers.table import write_table
 from database.connection import query
 from cli import ID_TYPES, CLI_ARGS, parse_cli_args
 from database.queries import SPRIDEN_ALL, SPRIDEN_REC, SPRIDEN_TEST
@@ -21,31 +23,14 @@ DESC = 'enrich a dataset containing a student ID column with another type of stu
 TEST_BID_ENV = 'TEST_BANNER_ID'
 TEST_CSV = 'test.csv'
 TEST_COL = 'bid'
+OUT_DIR = 'out'
 
+def outfile(in_name: Path, in_ext: str='.csv'): 
+    return Path(f'./{OUT_DIR}/{in_name.stem}_{datetime.now().strftime('%m%d%Y_%H%M%S')}{in_ext}')
+{}
 def s_strip(s: str) -> str:
     if s is None: return ''
     return s.replace('"', '').replace("'", '').strip().lower()
-
-def extract_ids(rows: list[Row], column_name: str, pattern: str | re.Pattern | None = None) -> list:
-    if not rows:
-        raise ValueError('no rows to extract from')
-    target = s_strip(column_name).lower()
-    lookup = {s_strip(k).lower(): k for k in rows[0]}
-    if target not in lookup:
-        raise ValueError(f"'{target}' not found in headers: {list(lookup)}")
-    key = lookup[target]
-
-    rx = re.compile(pattern) if isinstance(pattern, str) else pattern
-
-    ids = []
-    for row in rows:
-        if row[key] is None:
-            continue
-        value = s_strip(row[key])
-        if rx is None or rx.fullmatch(value):
-            ids.append(value)
-    return ids
-    # return [s_strip(row[key]) for row in rows]
 
 def make_query(opt='current', little: int | None = None, test_bid: str | None = None) -> str:
     match opt:
@@ -127,6 +112,7 @@ def main():
         print('dry execution')
         sys.exit(0)
 
+    test_bid = None
     if args.query == 'test':
         test_bid = setup_test_mode()
 
@@ -143,7 +129,6 @@ def main():
     print('+ querying database for alternate IDs...')
     try:
         db_rows = query(spriden_query, batch_size=args.db_batch_size)
-        print(db_rows)
         print(f'  + {len(db_rows)} rows returned from database')
     except Exception as err:
         print(f'  - error querying for alternate IDs: {err}')
@@ -157,12 +142,12 @@ def main():
             in_type.get('pattern'), out_type.get('pattern'),
         )
         enriched, unmatched = enrich(rows, args.id_column, out_type['long'], lookup)
-        print(f'  + {len(enriched) - unmatched} matched, {unmatched} unmatched')
+        print(f'  + {len(enriched)} matched, {unmatched} unmatched')
     except Exception as err:
         print(f'  - error joining datasets: {err}')
         sys.exit(1)
 
-    print(enriched)
+    write_table(enriched, outfile(Path(args.file_in), Path(args.file_in).suffix))
 
 if __name__=="__main__":
     main()
