@@ -9,9 +9,9 @@ def parse_cli_args(prog_name: str, prog_desc: str, args_conf: dict) -> argparse.
 
 # idx correlates to the position of the id field in the query results
 ID_TYPES = {
-    'bid': {'idx': 0, 'long': 'Banner ID', 'pattern': r'\d{9}'},
-    'pidm': {'idx': 1, 'long': 'PIDM', 'pattern': r'\d'},
-    'ssn': {'idx': 2, 'long': 'SSN', 'pattern': r'\d{9}'}, 
+    'bid': {'idx': 0, 'long': 'Banner ID', 'pattern': r'\d{9}', 'col': 'spriden_id'},
+    'pidm': {'idx': 1, 'long': 'PIDM', 'pattern': r'\d', 'col': 'spriden_pidm'},
+    'ssn': {'idx': 2, 'long': 'SSN', 'pattern': r'\d{9}', 'col': 'spbpers_ssn'}, 
     'name': {'idx': 3, 'long': 'Name', 'pattern': None}, 
 }
 

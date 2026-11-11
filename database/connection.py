@@ -15,12 +15,12 @@ def connect_db() -> oracledb.Connection:
     dsn = f'{host}:{port}/{name}'
     return oracledb.connect(user=user, password=pswd, dsn=dsn)
 
-def query(query: str, binds: dict | None = None, batch_size = 30_000) -> list[Row]:
+def query(query: str, params=None, batch_size = 30_000) -> list[Row]:
     with connect_db() as conn:
         with conn.cursor() as cur:
             cur.arraysize = batch_size
             cur.prefetchrows = batch_size + 1
-            cur.execute(query, binds or {})
+            cur.execute(query, params or {})
             if cur.description is None: 
                 return []
             columns = [col[0].lower() for col in cur.description]

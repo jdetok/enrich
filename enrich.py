@@ -1,5 +1,6 @@
 import re
 from row.row import Row
+from cli import ID_TYPES
 
 def s_strip(s: str) -> str:
     if s is None: return ''
@@ -58,3 +59,9 @@ def enrich(
                 continue
         out.append({new_column: match, **row})
     return out, unmatched
+
+def extract_ids(rows: list[Row], id_col: str, id_type) -> list[str]:
+    key = find_key(rows[0], id_col)
+    ids = [str(row[key]).strip() for row in rows if row.get(key) not in [None, '']]
+    rx = re.compile(ID_TYPES[id_type]['pattern']) if ID_TYPES[id_type].get('pattern') else None
+    return [i for i in ids if rx is None or rx.fullmatch(i)]
