@@ -1,15 +1,12 @@
-from __future__ import annotations
-
 import csv
+from row.row import Row
 from pathlib import Path
-from typing import Any
 
 CSV_SUFFIXES = {".csv", ".tsv", ".txt"}
 EXCEL_SUFFIXES = {".xlsx", ".xlsm"}
+
 # utf-8-sig handles a BOM (common in Excel exports); latin-1 never fails to decode.
 FALLBACK_ENCODINGS = ("utf-8-sig", "latin-1")
-
-Row = dict[str, Any]
 
 def read_table(
     path: str | Path,

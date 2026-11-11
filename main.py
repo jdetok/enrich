@@ -1,20 +1,17 @@
 import sys
 from pathlib import Path
 from datetime import datetime
-from readers.file import read_table
 from test import setup_test_mode
-from cli import ID_TYPES, CLI_ARGS, parse_cli_args
-from enrich.enrich import build_lookup, enrich
+from readers.table import read_table
 from writers.table import write_table
 from database.connection import query
-
+from enrich.enrich import build_lookup, enrich
+from cli import ID_TYPES, CLI_ARGS, parse_cli_args
 from database.queries import SPRIDEN_ALL, SPRIDEN_REC, SPRIDEN_TEST
 
-""" 10/29/2026
-Intention: build a CLI where I can pass an Excel or CSV file with a Banner ID, PIDM, 
-or SSN column, join that dataset to a result set of BIDs, PIDMs, and SSNs, and choose 
-which of the other two columns to insert at the front of the dataset. It will produce
-an identical file (type retained) with the only difference being the addition of the new columns
+"""
+Read a CSV/Excel file containing a column with Banner IDs, SSNs, or PIDMs and enrich the file with
+an additional identifier column (e.g. add Banner IDs to a file of SSNs)
 """
 
 DESC = 'enrich a dataset containing a student ID column with another type of student ID'
