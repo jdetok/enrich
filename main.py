@@ -1,14 +1,13 @@
-import os
 import sys
-import atexit
 from pathlib import Path
 from datetime import datetime
 from readers.file import read_table
-from writers.test_csv import make_test_csv, remove_rows_where
+from test import setup_test_mode
+from cli import ID_TYPES, CLI_ARGS, parse_cli_args
 from enrich.enrich import build_lookup, enrich
 from writers.table import write_table
 from database.connection import query
-from cli import ID_TYPES, CLI_ARGS, parse_cli_args
+
 from database.queries import SPRIDEN_ALL, SPRIDEN_REC, SPRIDEN_TEST
 
 """ 10/29/2026
@@ -19,9 +18,6 @@ an identical file (type retained) with the only difference being the addition of
 """
 
 DESC = 'enrich a dataset containing a student ID column with another type of student ID'
-TEST_BID_ENV = 'TEST_BANNER_ID'
-TEST_CSV = 'test.csv'
-TEST_COL = 'bid'
 OUT_DIR = 'out'
 
 def outfile(in_name: Path): 
@@ -32,26 +28,6 @@ def make_query(opt='current', little: int | None = None, test_bid: str | None = 
         case 'current': return SPRIDEN_REC(little)
         case 'all': return SPRIDEN_ALL(little)
         case 'test': return SPRIDEN_TEST(test_bid)
-
-def get_test_bid(bid_env_var=TEST_BID_ENV) -> str | None:
-    test_bid = os.environ.get(bid_env_var)
-    if test_bid is None:
-        print(f'  ! {bid_env_var} not found in .env')
-        return None
-    return test_bid
-
-def cleanup_test_mode(bid_env_var=TEST_BID_ENV, test_file: str | Path = TEST_CSV):
-    print(f'+ cleaning up test mode - removing {bid_env_var} from {test_file}')
-    removed = remove_rows_where(test_file, TEST_COL, get_test_bid(bid_env_var))
-    print(f'  + removed {removed} rows containing {bid_env_var} from {test_file}')
-
-def setup_test_mode(bid_env_var=TEST_BID_ENV) -> str | None:
-    print(f'+ test mode - adding {bid_env_var} from .env file to {TEST_CSV}')
-    test_bid = get_test_bid(bid_env_var)
-    path = make_test_csv([TEST_COL], [[test_bid]])
-    print(f'  + wrote {bid_env_var} to {path}')
-    atexit.register(cleanup_test_mode, bid_env_var, path)
-    return test_bid
 
 # ENTRYPOINT
 def main():
@@ -66,6 +42,9 @@ def main():
         test_bid = setup_test_mode()
 
     spriden_query = make_query(args.query, args.little, test_bid)
+
+    in_type, out_type = ID_TYPES[args.id_in], ID_TYPES[args.id_out]
+    out_file = outfile(Path(args.file_in))
 
     print(f'+ reading rows from {args.file_in}...')
     try:
@@ -82,9 +61,7 @@ def main():
     except Exception as err:
         print(f'  - error querying for alternate IDs: {err}')
         sys.exit(1)
-    
-    in_type, out_type = ID_TYPES[args.id_in], ID_TYPES[args.id_out]
-    
+
     print(f'+ attempting {args.join_type} join on {in_type['long']}...')
     try:
         lookup = build_lookup(
@@ -100,8 +77,6 @@ def main():
         print(f'  - error joining datasets: {err}')
         sys.exit(1)
     
-    out_file = outfile(Path(args.file_in))
-
     try:
         write_table(enriched, out_file)
     except Exception as err:
